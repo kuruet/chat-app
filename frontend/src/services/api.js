@@ -1,7 +1,10 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://chat-app-production-e81b.up.railway.app/api",
+  baseURL:
+    import.meta.env.MODE === "development"
+      ? "http://localhost:5000/api"
+      : "https://chat-app-production-e81b.up.railway.app/api",
 });
 
 // attach token automatically

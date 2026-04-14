@@ -13,17 +13,20 @@ connectDB();
 // create HTTP server
 const server = http.createServer(app);
 
-// setup socket.io
+// setup socket.io with env-based CORS
 const io = new Server(server, {
   cors: {
-    origin: "*", // later restrict to frontend domain
+    origin:
+      process.env.NODE_ENV === "production"
+        ? "https://your-frontend-domain.vercel.app" // 🔁 replace later
+        : "http://localhost:5173",
     methods: ["GET", "POST"],
   },
-  transports: ["websocket", "polling"], // ✅ important
+  transports: ["websocket", "polling"], // ✅ required for cloud
   allowEIO3: true, // ✅ compatibility
 });
 
-// debug connection (VERY IMPORTANT)
+// debug connection
 io.on("connection", (socket) => {
   console.log("🔥 New socket connected:", socket.id);
 });

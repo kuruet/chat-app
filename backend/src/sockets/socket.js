@@ -7,10 +7,21 @@ const initSocket = (io) => {
   io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // register user
+    // ✅ register user (FIXED — single active socket per user)
     socket.on("register", (userId) => {
+      const existingSocketId = onlineUsers.get(userId);
+
+      // disconnect old socket if exists
+      if (existingSocketId && existingSocketId !== socket.id) {
+        const existingSocket = io.sockets.sockets.get(existingSocketId);
+        if (existingSocket) {
+          existingSocket.disconnect(true);
+        }
+      }
+
       onlineUsers.set(userId, socket.id);
       socket.userId = userId;
+
       console.log(`User registered: ${userId}`);
     });
 
@@ -24,7 +35,7 @@ const initSocket = (io) => {
           return socket.emit("error", "Invalid message data");
         }
 
-        // store message (convert to ObjectId)
+        // store message
         const message = await Message.create({
           senderId: new mongoose.Types.ObjectId(senderId),
           receiverId: new mongoose.Types.ObjectId(receiverId),
@@ -34,11 +45,10 @@ const initSocket = (io) => {
 
         const receiverSocketId = onlineUsers.get(receiverId);
 
-        // deliver message if receiver online
+        // deliver to receiver
         if (receiverSocketId) {
           io.to(receiverSocketId).emit("receive_message", message);
 
-          // update status → delivered
           message.status = "delivered";
           await message.save();
         }
@@ -51,7 +61,7 @@ const initSocket = (io) => {
       }
     });
 
-    // ✅ MARK AS SEEN (NEW FEATURE)
+    // MARK AS SEEN
     socket.on("mark_seen", async ({ senderId }) => {
       try {
         if (!senderId || !socket.userId) return;
@@ -65,7 +75,6 @@ const initSocket = (io) => {
           { status: "seen" }
         );
 
-        // notify sender
         const senderSocketId = onlineUsers.get(senderId);
 
         if (senderSocketId) {
